@@ -1,0 +1,63 @@
+- name: Get the current timestamp
+  shell: date +%Y%m%d
+  register: timestamp
+
+#- name: "Destination Server Port"
+ # set_fact:
+ #   dest_port: "{{vars['hostvars'][groups['dst'][0]]['ansible_port']}}"
+
+#- name: "Set Backup file name"
+ #set_fact:
+   #backup_file_path: "{{ db_name }}_{{ timestamp.stdout }}"
+
+   #backup_file_path: "/backup/sbicloud/liberia/livedb/{{ db_name }}"
+
+#- name: Create database Backup Using mysqldump
+# shell: "mysqldump -u {{db_user}} -p{{db_pass}} {{ db_name }} | gzip -v > {{backup_file_path}}.sql.gz"
+
+- name: "Transfer file from {{groups['src'][0]}} to {{groups['dst'][0]}}"
+  copy: 
+   src: "{{src_path}}{{db_name}}.sql.gz"
+   dest: "{{dst_path}}{{db_name}}.sql.gz"
+
+#- name: Remove Temp Files
+ # file:
+  #  state: absent
+   # path: "{{backup_file_path}}.sql.gz"
+
+- name: "Extract {{db_name}}.sql.gz into {{dst_path}}"
+  shell: "gzip -d {{db_name}}.sql.gz"
+  args:
+    chdir: /tmp/
+
+- name: "Drop DB"
+  shell: "mysql --user='{{db_user2}}' --password='{{db_pass2}}' --execute='DROP DATABASE {{NEW_DB_NAME}};'"
+  ignore_errors: yes
+
+- name: "Create DB"
+  shell: "mysql --user='{{db_user2}}' --password='{{db_pass2}}' --execute='CREATE DATABASE {{NEW_DB_NAME}};'"
+
+
+- name: "Restore DB"
+  shell: "mysql -u {{db_user2}} -f -p{{db_pass2}} --one-database {{NEW_DB_NAME}} < {{dst_path}}{{db_name}}.sql 2>> {{dst_path}}{{db_name}}_{{timestamp.stdout}}.log"
+
+- name: "Remove Temp Files From {{groups['dst'][0]}}"
+  file:
+    state: absent
+    path: "{{item}}"
+  with_items:
+    - '{{dst_path}}{{db_name}}.sql'
+    - '{{dst_path}}{{db_name}}.sql.gz'
+
+- name: Email notification
+  local_action: mail
+    host="{{MAIL_SERVER_HOST}}"
+    port="{{MAIL_SERVER_PORT | int}}"
+    subject="Database Copied To {{groups['dst'][0]}}"
+    from="{{FROM_EMAIL}}"
+    to="{{TO_EMAIL}}"
+    subtype=html
+    body="{{ lookup('template', 'templates/mail_body.j2') }}"
+  become: false
+
+
