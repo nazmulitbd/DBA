@@ -1,20 +1,3 @@
-- name: Get the current timestamp
-  shell: date +%Y%m%d
-  register: timestamp
-
-#- name: "Destination Server Port"
- # set_fact:
- #   dest_port: "{{vars['hostvars'][groups['dst'][0]]['ansible_port']}}"
-
-#- name: "Set Backup file name"
- #set_fact:
-   #backup_file_path: "{{ db_name }}_{{ timestamp.stdout }}"
-
-   #backup_file_path: "/backup/sbicloud/liberia/livedb/{{ db_name }}"
-
-#- name: Create database Backup Using mysqldump
-# shell: "mysqldump -u {{db_user}} -p{{db_pass}} {{ db_name }} | gzip -v > {{backup_file_path}}.sql.gz"
-
 - name: "Transfer file from {{groups['src'][0]}} to {{groups['dst'][0]}}"
   copy: 
    src: "{{src_path}}{{db_name}}.sql.gz"
